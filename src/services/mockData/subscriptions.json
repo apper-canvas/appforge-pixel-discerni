@@ -1,0 +1,44 @@
+[
+  {
+    "id": "sub_1",
+    "appId": "app_1",
+    "name": "Live User Activity",
+    "table": "users",
+    "events": ["INSERT", "UPDATE", "DELETE"],
+    "filter": "status = 'active'",
+    "status": "active",
+    "connections": 12,
+    "messagesDelivered": 3456,
+    "protocol": "websocket",
+    "endpoint": "wss://realtime.example.com/users",
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "sub_2",
+    "appId": "app_1",
+    "name": "Order Updates",
+    "table": "orders",
+    "events": ["INSERT", "UPDATE"],
+    "filter": "status IN ('pending', 'processing')",
+    "status": "active",
+    "connections": 8,
+    "messagesDelivered": 1789,
+    "protocol": "server-sent-events",
+    "endpoint": "https://api.example.com/sse/orders",
+    "createdAt": "2024-01-05T00:00:00Z"
+  },
+  {
+    "id": "sub_3",
+    "appId": "app_2",
+    "name": "Chat Messages",
+    "table": "messages",
+    "events": ["INSERT"],
+    "filter": "room_id IS NOT NULL",
+    "status": "paused",
+    "connections": 0,
+    "messagesDelivered": 9823,
+    "protocol": "websocket",
+    "endpoint": "wss://chat.app.com/messages",
+    "createdAt": "2024-01-12T00:00:00Z"
+  }
+]

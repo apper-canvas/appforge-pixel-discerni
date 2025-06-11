@@ -1,0 +1,52 @@
+[
+  {
+    "id": "webhook_1",
+    "appId": "app_1",
+    "name": "User Registration Webhook",
+    "url": "https://api.example.com/webhooks/user-created",
+    "events": ["user.created", "user.updated"],
+    "table": "users",
+    "status": "active",
+    "secret": "whsec_1234567890abcdef",
+    "headers": {
+      "Authorization": "Bearer token123",
+      "Content-Type": "application/json"
+    },
+    "lastTriggered": "2024-01-15T10:30:00Z",
+    "totalCalls": 1247,
+    "successRate": 98.5,
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "webhook_2",
+    "appId": "app_1",
+    "name": "Order Processing",
+    "url": "https://api.mystore.com/orders/webhook",
+    "events": ["order.created", "order.updated", "order.completed"],
+    "table": "orders",
+    "status": "active",
+    "secret": "whsec_abcdef1234567890",
+    "headers": {
+      "X-API-Key": "api_key_456"
+    },
+    "lastTriggered": "2024-01-15T09:15:00Z",
+    "totalCalls": 892,
+    "successRate": 99.2,
+    "createdAt": "2024-01-05T00:00:00Z"
+  },
+  {
+    "id": "webhook_3",
+    "appId": "app_2",
+    "name": "Payment Notifications",
+    "url": "https://billing.app.com/webhook/payments",
+    "events": ["payment.succeeded", "payment.failed"],
+    "table": "payments",
+    "status": "paused",
+    "secret": "whsec_9876543210fedcba",
+    "headers": {},
+    "lastTriggered": "2024-01-14T16:45:00Z",
+    "totalCalls": 445,
+    "successRate": 97.8,
+    "createdAt": "2024-01-10T00:00:00Z"
+  }
+]
