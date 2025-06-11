@@ -108,6 +108,15 @@ const AppBuilder = () => {
 const VisualBuilder = ({ app }) => {
   const [selectedComponent, setSelectedComponent] = useState(null)
   const [canvas, setCanvas] = useState([])
+  const [chatMessages, setChatMessages] = useState([
+    { 
+      type: 'assistant', 
+      content: `Welcome to ${app?.name || 'your app'} builder! I'm here to help you create amazing components through conversation. What would you like to build first?`,
+      timestamp: new Date()
+    }
+  ])
+  const [chatInput, setChatInput] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
 
   const components = [
     { id: 'button', name: 'Button', icon: 'Square', category: 'Basic' },
@@ -118,42 +127,203 @@ const VisualBuilder = ({ app }) => {
     { id: 'list', name: 'List', icon: 'List', category: 'Data' }
   ]
 
-  const addComponent = (component) => {
+  const addComponent = (component, fromChat = false) => {
     const newComponent = {
       id: Date.now(),
       type: component.id,
       name: component.name,
       props: {},
-      style: { x: 50, y: 50 }
+      style: { x: Math.random() * 100 + 50, y: Math.random() * 100 + 50 }
     }
     setCanvas([...canvas, newComponent])
-    toast.success(`${component.name} added to canvas`)
+    
+    if (fromChat) {
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: `Perfect! I've added a ${component.name} to your canvas. You can click on it to customize its properties, or tell me what you'd like to do next!`,
+          timestamp: new Date()
+        }])
+        setIsTyping(false)
+      }, 1500)
+    } else {
+      toast.success(`${component.name} added to canvas`)
+    }
+  }
+
+  const handleChatSubmit = (e) => {
+    e.preventDefault()
+    if (!chatInput.trim()) return
+
+    const userMessage = { 
+      type: 'user', 
+      content: chatInput,
+      timestamp: new Date()
+    }
+    setChatMessages(prev => [...prev, userMessage])
+    setIsTyping(true)
+
+    // Enhanced AI simulation
+    let response = ''
+    let suggestedComponent = null
+    let delay = 2000
+
+    const input = chatInput.toLowerCase()
+    
+    if (input.includes('button') || input.includes('click') || input.includes('submit')) {
+      response = `Great idea! I'll create a button for you. Buttons are essential for user interactions like form submissions, navigation, or triggering actions. This will be perfect for your ${app?.name || 'app'}!`
+      suggestedComponent = components.find(c => c.id === 'button')
+    } else if (input.includes('input') || input.includes('form') || input.includes('field') || input.includes('enter')) {
+      response = `Excellent! An input field is exactly what you need. This will allow users to enter data, whether it's for search, forms, or user information. I'll add one to your canvas right away.`
+      suggestedComponent = components.find(c => c.id === 'input')
+    } else if (input.includes('card') || input.includes('display') || input.includes('show') || input.includes('container')) {
+      response = `Perfect choice! Cards are fantastic for organizing and displaying content in a clean, structured way. They're great for user profiles, product listings, or any grouped information.`
+      suggestedComponent = components.find(c => c.id === 'card')
+    } else if (input.includes('list') || input.includes('items') || input.includes('multiple') || input.includes('collection')) {
+      response = `Smart thinking! A list component is ideal for displaying multiple items, whether it's a todo list, user directory, or product catalog. I'll set that up for you!`
+      suggestedComponent = components.find(c => c.id === 'list')
+    } else if (input.includes('text') || input.includes('heading') || input.includes('title') || input.includes('paragraph')) {
+      response = `Good call! Text components are fundamental for headings, descriptions, and content. They help structure your app's information hierarchy beautifully.`
+      suggestedComponent = components.find(c => c.id === 'text')
+    } else if (input.includes('image') || input.includes('photo') || input.includes('picture') || input.includes('media')) {
+      response = `Excellent! Images make apps more engaging and visual. Whether it's user avatars, product photos, or decorative elements, this will enhance your app's appeal.`
+      suggestedComponent = components.find(c => c.id === 'image')
+    } else if (input.includes('dashboard') || input.includes('admin')) {
+      response = `A dashboard is a great idea! Let me start with some essential components. I'll add a card for displaying metrics and a list for data. We can build from there!`
+      suggestedComponent = components.find(c => c.id === 'card')
+      delay = 3000
+    } else if (input.includes('hello') || input.includes('hi') || input.includes('hey')) {
+      response = `Hello! I'm excited to help you build your app. What kind of interface are you envisioning? You could describe a specific component you need, or tell me about the overall functionality you're trying to create.`
+    } else {
+      response = `That sounds interesting! Based on what you described, I think we should start with some foundational components. Would you like me to suggest a button for user interactions, or perhaps an input field for data collection?`
+    }
+
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, { 
+        type: 'assistant', 
+        content: response,
+        timestamp: new Date()
+      }])
+      
+      if (suggestedComponent) {
+        addComponent(suggestedComponent, true)
+      } else {
+        setIsTyping(false)
+      }
+    }, delay)
+
+    setChatInput('')
   }
 
   return (
     <div className="h-full flex">
-      {/* Component Library */}
-      <div className="w-80 border-r border-gray-700 p-6 overflow-y-auto">
-        <h3 className="text-lg font-semibold mb-4">Components</h3>
-        <div className="space-y-4">
+      {/* Chat Interface - Primary */}
+      <div className="w-96 border-r border-gray-700 flex flex-col">
+        <div className="p-4 border-b border-gray-700">
+          <h3 className="text-lg font-semibold flex items-center">
+            <ApperIcon name="MessageCircle" size={20} className="mr-2 text-primary" />
+            AI Builder Assistant
+          </h3>
+          <p className="text-sm text-gray-400 mt-1">Describe what you want to build</p>
+        </div>
+        
+        {/* Chat Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {chatMessages.map((message, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div className={`max-w-[85%] ${message.type === 'user' ? 'order-2' : 'order-1'}`}>
+                <div className={`p-3 rounded-lg ${
+                  message.type === 'user' 
+                    ? 'bg-primary text-white rounded-br-sm' 
+                    : 'bg-gray-800 text-gray-200 rounded-bl-sm'
+                }`}>
+                  <p className="text-sm">{message.content}</p>
+                </div>
+                <p className="text-xs text-gray-500 mt-1 px-1">
+                  {message.timestamp?.toLocaleTimeString()}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+          
+          {isTyping && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-start"
+            >
+              <div className="bg-gray-800 p-3 rounded-lg rounded-bl-sm">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Chat Input */}
+        <div className="p-4 border-t border-gray-700">
+          <form onSubmit={handleChatSubmit} className="flex space-x-2">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Describe your component or feature..."
+              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+              disabled={isTyping}
+            />
+            <button
+              type="submit"
+              disabled={isTyping || !chatInput.trim()}
+              className="px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ApperIcon name="Send" size={16} />
+            </button>
+          </form>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {['Add a button', 'Create a form', 'Show a list', 'Add a card'].map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => setChatInput(suggestion)}
+                className="px-2 py-1 bg-gray-700 text-xs rounded hover:bg-gray-600 transition-colors"
+                disabled={isTyping}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Component Library - Secondary */}
+      <div className="w-64 border-r border-gray-700 p-4 overflow-y-auto">
+        <h3 className="text-sm font-semibold mb-3 text-gray-400">Quick Add Components</h3>
+<div className="space-y-3">
           {['Basic', 'Form', 'Layout', 'Data', 'Media'].map(category => (
             <div key={category}>
-              <h4 className="text-sm font-medium text-gray-400 mb-2">{category}</h4>
-              <div className="grid grid-cols-2 gap-2">
+              <h4 className="text-xs font-medium text-gray-500 mb-2">{category}</h4>
+              <div className="space-y-1">
                 {components
                   .filter(comp => comp.category === category)
                   .map(component => (
                     <button
                       key={component.id}
                       onClick={() => addComponent(component)}
-                      className="p-3 border border-gray-600 rounded-lg hover:border-primary transition-colors text-center group"
+                      className="w-full flex items-center space-x-2 p-2 border border-gray-700 rounded-lg hover:border-primary hover:bg-gray-800 transition-colors text-left group"
                     >
                       <ApperIcon 
                         name={component.icon} 
-                        size={24} 
-                        className="mx-auto mb-1 text-gray-400 group-hover:text-primary" 
+                        size={16} 
+                        className="text-gray-400 group-hover:text-primary" 
                       />
-                      <div className="text-xs">{component.name}</div>
+                      <span className="text-xs">{component.name}</span>
                     </button>
                   ))
                 }
@@ -163,73 +333,138 @@ const VisualBuilder = ({ app }) => {
         </div>
       </div>
 
-      {/* Canvas */}
+{/* Canvas */}
       <div className="flex-1 bg-gray-900 relative overflow-hidden">
         <div className="absolute inset-4 bg-white rounded-lg shadow-xl overflow-auto">
-          {canvas.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <ApperIcon name="MousePointer" size={48} className="mx-auto mb-4" />
-                <p className="text-lg">Drag components here to start building</p>
+          <div className="h-full">
+            {canvas.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-gray-400">
+                <div className="text-center">
+                  <ApperIcon name="MessageCircle" size={48} className="mx-auto mb-4" />
+                  <p className="text-lg font-semibold mb-2">Start Building with AI</p>
+                  <p className="text-sm">Describe what you want in the chat, or use quick-add components</p>
+                  <div className="mt-4 text-xs text-gray-500">
+                    Try: "Add a login button" or "Create a user card"
+                  </div>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="p-4 space-y-4">
-              {canvas.map(component => (
-                <motion.div
-                  key={component.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={`p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer ${
-                    selectedComponent?.id === component.id ? 'border-primary bg-primary/10' : ''
-                  }`}
-                  onClick={() => setSelectedComponent(component)}
-                >
-                  <ComponentPreview component={component} />
-                </motion.div>
-              ))}
-            </div>
-          )}
+            ) : (
+              <div className="p-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-gray-600">Your App Preview</h4>
+                  <div className="text-xs text-gray-500">
+                    {canvas.length} component{canvas.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {canvas.map(component => (
+                    <motion.div
+                      key={component.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className={`p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition-all hover:border-gray-400 ${
+                        selectedComponent?.id === component.id ? 'border-primary bg-primary/5' : ''
+                      }`}
+                      onClick={() => setSelectedComponent(component)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-gray-500 capitalize">
+                          {component.type}
+                        </span>
+                        {selectedComponent?.id === component.id && (
+                          <span className="text-xs text-primary">Selected</span>
+                        )}
+                      </div>
+                      <ComponentPreview component={component} />
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Properties Panel */}
-      <div className="w-80 border-l border-gray-700 p-6 overflow-y-auto">
+{/* Properties Panel */}
+      <div className="w-80 border-l border-gray-700 p-4 overflow-y-auto">
         <h3 className="text-lg font-semibold mb-4">Properties</h3>
         {selectedComponent ? (
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Component Type</label>
-              <p className="text-gray-400 capitalize">{selectedComponent.type}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Text Content</label>
-              <input
-                type="text"
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-black"
-                placeholder="Enter text..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Style</label>
-              <div className="space-y-2">
-                <div className="flex space-x-2">
+            <div className="glass rounded-lg p-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <ApperIcon name="Settings" size={16} className="text-primary" />
+                <h4 className="font-medium capitalize">{selectedComponent.type}</h4>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Content</label>
                   <input
                     type="text"
-                    placeholder="Width"
-                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-black"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Height"
-                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-black"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                    placeholder="Enter text content..."
                   />
                 </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Style</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="px-3 py-2 bg-primary/20 border border-primary text-primary text-xs rounded-lg">
+                      Primary
+                    </button>
+                    <button className="px-3 py-2 bg-gray-700 border border-gray-600 text-gray-300 text-xs rounded-lg">
+                      Secondary
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Size</label>
+                  <select className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                    <option>Small</option>
+                    <option>Medium</option>
+                    <option>Large</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass rounded-lg p-4">
+              <h4 className="font-medium mb-3 flex items-center">
+                <ApperIcon name="Zap" size={16} className="mr-2 text-secondary" />
+                AI Suggestions
+              </h4>
+              <div className="space-y-2">
+                <button 
+                  onClick={() => setChatInput(`Make this ${selectedComponent.type} more colorful`)}
+                  className="w-full text-left px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition-colors"
+                >
+                  💄 Improve styling
+                </button>
+                <button 
+                  onClick={() => setChatInput(`Add functionality to this ${selectedComponent.type}`)}
+                  className="w-full text-left px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition-colors"
+                >
+                  ⚡ Add interactions
+                </button>
+                <button 
+                  onClick={() => setChatInput(`Connect this ${selectedComponent.type} to database`)}
+                  className="w-full text-left px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition-colors"
+                >
+                  🔌 Connect data
+                </button>
               </div>
             </div>
           </div>
         ) : (
-          <p className="text-gray-400">Select a component to edit its properties</p>
+          <div className="text-center py-8">
+            <ApperIcon name="MousePointer" size={32} className="text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400 text-sm mb-4">
+              Select a component from the canvas to edit its properties
+            </p>
+            <p className="text-xs text-gray-500">
+              Or ask the AI assistant to modify components for you!
+            </p>
+          </div>
         )}
       </div>
     </div>

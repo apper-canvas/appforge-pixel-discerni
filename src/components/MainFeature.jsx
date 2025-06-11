@@ -6,22 +6,26 @@ const MainFeature = () => {
   const [activeStep, setActiveStep] = useState(0)
   const [selectedComponent, setSelectedComponent] = useState(null)
   const [canvasComponents, setCanvasComponents] = useState([])
+  const [chatMessages, setChatMessages] = useState([
+    { type: 'assistant', content: 'Hi! I\'m here to help you build your app. What would you like to create today?' },
+  ])
+  const [chatInput, setChatInput] = useState('')
 
   const steps = [
     {
-      title: 'Choose Components',
-      description: 'Drag components from our library',
-      icon: 'Package'
+      title: 'Describe Your App',
+      description: 'Tell me what you want to build in natural language',
+      icon: 'MessageCircle'
     },
     {
-      title: 'Design & Style',
-      description: 'Customize appearance with our visual editor',
+      title: 'Refine with Chat',
+      description: 'I\'ll suggest components and improvements',
+      icon: 'Zap'
+    },
+    {
+      title: 'Visual Polish',
+      description: 'Fine-tune with our visual editor if needed',
       icon: 'Palette'
-    },
-    {
-      title: 'Connect Data',
-      description: 'Link components to your database',
-      icon: 'Database'
     },
     {
       title: 'Deploy Live',
@@ -37,25 +41,81 @@ const MainFeature = () => {
     { id: 'list', name: 'List', icon: 'List', color: 'bg-orange-500' }
   ]
 
-  const addToCanvas = (component) => {
+  const addToCanvas = (component, fromChat = false) => {
     const newComponent = {
       ...component,
       id: `${component.id}-${Date.now()}`,
       position: { x: Math.random() * 200, y: Math.random() * 100 }
     }
     setCanvasComponents([...canvasComponents, newComponent])
-    setActiveStep(Math.min(activeStep + 1, steps.length - 1))
+    
+    if (fromChat) {
+      setActiveStep(Math.min(activeStep + 1, steps.length - 1))
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: `Great! I've added a ${component.name} to your app. ${getNextSuggestion()}`
+      }])
+    } else {
+      setActiveStep(Math.min(activeStep + 1, steps.length - 1))
+    }
+  }
+
+  const getNextSuggestion = () => {
+    const suggestions = [
+      'Would you like to add an input field to collect user data?',
+      'How about a card to display information?',
+      'Should we add a list to show multiple items?',
+      'Would you like to style this component differently?'
+    ]
+    return suggestions[Math.floor(Math.random() * suggestions.length)]
+  }
+
+  const handleChatSubmit = (e) => {
+    e.preventDefault()
+    if (!chatInput.trim()) return
+
+    const userMessage = { type: 'user', content: chatInput }
+    setChatMessages(prev => [...prev, userMessage])
+
+    // Simple AI simulation based on keywords
+    let response = 'I understand you want to '
+    let suggestedComponent = null
+
+    if (chatInput.toLowerCase().includes('button')) {
+      response = 'Perfect! I\'ll add a button for you. Buttons are great for user interactions like submitting forms or triggering actions.'
+      suggestedComponent = components.find(c => c.id === 'button')
+    } else if (chatInput.toLowerCase().includes('input') || chatInput.toLowerCase().includes('form')) {
+      response = 'Excellent choice! I\'ll add an input field. This will let users enter data into your app.'
+      suggestedComponent = components.find(c => c.id === 'input')
+    } else if (chatInput.toLowerCase().includes('card') || chatInput.toLowerCase().includes('display')) {
+      response = 'Great idea! I\'ll add a card component. Cards are perfect for displaying organized information.'
+      suggestedComponent = components.find(c => c.id === 'card')
+    } else if (chatInput.toLowerCase().includes('list') || chatInput.toLowerCase().includes('show')) {
+      response = 'Smart! I\'ll add a list component. Lists are ideal for showing multiple items or data entries.'
+      suggestedComponent = components.find(c => c.id === 'list')
+    } else {
+      response = 'That sounds interesting! Based on what you described, I recommend starting with a button and input field. What do you think?'
+    }
+
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, { type: 'assistant', content: response }])
+      if (suggestedComponent) {
+        setTimeout(() => addToCanvas(suggestedComponent, true), 1000)
+      }
+      setActiveStep(Math.min(activeStep + 1, steps.length - 1))
+    }, 1000)
+
+    setChatInput('')
   }
 
   return (
     <div className="glass rounded-2xl p-8 max-w-6xl mx-auto">
       <div className="text-center mb-8">
-        <h3 className="text-2xl font-bold mb-2">Interactive App Builder Demo</h3>
+        <h3 className="text-2xl font-bold mb-2">AI-Powered App Builder Demo</h3>
         <p className="text-gray-400">
-          Experience how easy it is to build React apps visually
+          Build React apps through natural conversation - just tell us what you want!
         </p>
       </div>
-
       {/* Progress Steps */}
       <div className="flex justify-between mb-8 relative">
         <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-700">
@@ -86,35 +146,51 @@ const MainFeature = () => {
         ))}
       </div>
 
-      {/* Demo Interface */}
+{/* Demo Interface */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-96">
-        {/* Component Library */}
-        <div className="bg-gray-900 rounded-xl p-4 overflow-hidden">
+        {/* Chat Interface - Primary */}
+        <div className="bg-gray-900 rounded-xl p-4 overflow-hidden flex flex-col">
           <h4 className="font-semibold mb-4 flex items-center">
-            <ApperIcon name="Package" size={16} className="mr-2" />
-            Components
+            <ApperIcon name="MessageCircle" size={16} className="mr-2" />
+            AI Assistant
           </h4>
-          <div className="space-y-2">
-            {components.map((component) => (
-              <motion.button
-                key={component.id}
-                onClick={() => addToCanvas(component)}
-                className="w-full flex items-center space-x-3 p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors group"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+          
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+            {chatMessages.map((message, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`w-8 h-8 ${component.color} rounded flex items-center justify-center`}>
-                  <ApperIcon name={component.icon} size={16} className="text-white" />
+                <div className={`max-w-[80%] p-3 rounded-lg text-sm ${
+                  message.type === 'user' 
+                    ? 'bg-primary text-white' 
+                    : 'bg-gray-800 text-gray-200'
+                }`}>
+                  {message.content}
                 </div>
-                <span className="text-sm font-medium">{component.name}</span>
-                <ApperIcon 
-                  name="Plus" 
-                  size={14} 
-                  className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity" 
-                />
-              </motion.button>
+              </motion.div>
             ))}
           </div>
+
+          {/* Chat Input */}
+          <form onSubmit={handleChatSubmit} className="flex space-x-2">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Describe what you want to build..."
+              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+            <button
+              type="submit"
+              className="px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
+            >
+              <ApperIcon name="Send" size={16} />
+            </button>
+          </form>
         </div>
 
         {/* Canvas */}
@@ -157,61 +233,49 @@ const MainFeature = () => {
           </div>
         </div>
 
-        {/* Properties Panel */}
+{/* Visual Components - Secondary */}
         <div className="bg-gray-900 rounded-xl p-4">
           <h4 className="font-semibold mb-4 flex items-center">
-            <ApperIcon name="Settings" size={16} className="mr-2" />
-            Properties
+            <ApperIcon name="Package" size={16} className="mr-2" />
+            Quick Add
+            <span className="ml-2 text-xs text-gray-400">(Optional)</span>
           </h4>
-          {selectedComponent ? (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Component</label>
-                <p className="text-gray-400 capitalize">{selectedComponent.name}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Style</label>
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    min="50"
-                    max="200"
-                    className="w-full"
-                    onChange={() => setActiveStep(2)}
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <button 
-                      className="px-3 py-1 bg-primary text-white text-xs rounded"
-                      onClick={() => setActiveStep(2)}
-                    >
-                      Primary
-                    </button>
-                    <button 
-                      className="px-3 py-1 bg-gray-700 text-white text-xs rounded"
-                      onClick={() => setActiveStep(2)}
-                    >
-                      Secondary
-                    </button>
-                  </div>
+          <p className="text-xs text-gray-400 mb-3">Or drag components directly:</p>
+          <div className="grid grid-cols-2 gap-2">
+            {components.map((component) => (
+              <motion.button
+                key={component.id}
+                onClick={() => addToCanvas(component)}
+                className="flex flex-col items-center space-y-2 p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors group"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className={`w-8 h-8 ${component.color} rounded flex items-center justify-center`}>
+                  <ApperIcon name={component.icon} size={16} className="text-white" />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Data Source</label>
-                <select 
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm"
-                  onChange={() => setActiveStep(3)}
+                <span className="text-xs font-medium">{component.name}</span>
+              </motion.button>
+            ))}
+          </div>
+          
+          {selectedComponent && (
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              <h5 className="text-sm font-medium mb-2">Selected: {selectedComponent.name}</h5>
+              <div className="space-y-2">
+                <button 
+                  className="w-full px-3 py-1 bg-primary text-white text-xs rounded"
+                  onClick={() => setActiveStep(2)}
                 >
-                  <option>Select table...</option>
-                  <option>Users</option>
-                  <option>Products</option>
-                  <option>Orders</option>
-                </select>
+                  Style This
+                </button>
+                <button 
+                  className="w-full px-3 py-1 bg-gray-700 text-white text-xs rounded"
+                  onClick={() => setActiveStep(2)}
+                >
+                  Add Data
+                </button>
               </div>
             </div>
-          ) : (
-            <p className="text-gray-400 text-sm">
-              Select a component from the canvas to edit its properties
-            </p>
           )}
         </div>
       </div>
