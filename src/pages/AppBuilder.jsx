@@ -507,6 +507,9 @@ const DatabaseDesigner = ({ app }) => {
   const [tables, setTables] = useState([])
   const [loading, setLoading] = useState(false)
   const [showCreateTable, setShowCreateTable] = useState(false)
+  const [selectedTable, setSelectedTable] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [expandedSchemas, setExpandedSchemas] = useState({ public: true, auth: true, storage: true })
 
   useEffect(() => {
     if (app) {
@@ -518,7 +521,11 @@ const DatabaseDesigner = ({ app }) => {
     setLoading(true)
     try {
       const result = await databaseTableService.getAll()
-      setTables(result.filter(table => table.appId === app?.id))
+      const appTables = result.filter(table => table.appId === app?.id)
+      setTables(appTables)
+      if (appTables.length > 0 && !selectedTable) {
+        setSelectedTable(appTables[0])
+      }
     } catch (err) {
       toast.error('Failed to load tables')
     } finally {
@@ -530,14 +537,105 @@ const DatabaseDesigner = ({ app }) => {
     try {
       const newTable = await databaseTableService.create({
         ...tableData,
-        appId: app.id
+        appId: app.id,
+        schema: 'public',
+        rowCount: 0
       })
       setTables([...tables, newTable])
+      setSelectedTable(newTable)
       setShowCreateTable(false)
       toast.success('Table created successfully')
     } catch (err) {
       toast.error('Failed to create table')
     }
+  }
+
+  const handleDeleteTable = async (tableId) => {
+    if (!confirm('Are you sure you want to delete this table? This action cannot be undone.')) {
+      return
+    }
+    
+    try {
+      await databaseTableService.delete(tableId)
+      const updatedTables = tables.filter(t => t.id !== tableId)
+      setTables(updatedTables)
+      if (selectedTable?.id === tableId) {
+        setSelectedTable(updatedTables[0] || null)
+      }
+      toast.success('Table deleted successfully')
+    } catch (err) {
+      toast.error('Failed to delete table')
+    }
+  }
+
+  const getSchemaIcon = (schema) => {
+    switch (schema) {
+      case 'public': return 'Database'
+      case 'auth': return 'Shield'
+      case 'storage': return 'HardDrive'
+      default: return 'Folder'
+    }
+  }
+
+  const getFieldTypeIcon = (type) => {
+    switch (type) {
+      case 'string': return 'Type'
+      case 'number': return 'Hash'
+      case 'boolean': return 'ToggleLeft'
+      case 'date': return 'Calendar'
+      case 'array': return 'List'
+      case 'object': return 'Braces'
+      default: return 'Circle'
+    }
+  }
+
+  const groupTablesBySchema = () => {
+    const schemas = {
+      public: tables.filter(t => !t.schema || t.schema === 'public'),
+      auth: tables.filter(t => t.schema === 'auth'),
+      storage: tables.filter(t => t.schema === 'storage')
+    }
+    
+    // Add example auth tables if none exist
+    if (schemas.auth.length === 0) {
+      schemas.auth = [
+        { id: 'auth_users', name: 'users', schema: 'auth', fields: [
+          { name: 'id', type: 'string', required: true },
+          { name: 'email', type: 'string', required: true },
+          { name: 'created_at', type: 'date', required: true }
+        ], isSystemTable: true },
+        { id: 'auth_sessions', name: 'sessions', schema: 'auth', fields: [
+          { name: 'id', type: 'string', required: true },
+          { name: 'user_id', type: 'string', required: true },
+          { name: 'expires_at', type: 'date', required: true }
+        ], isSystemTable: true }
+      ]
+    }
+    
+    // Add example storage tables if none exist
+    if (schemas.storage.length === 0) {
+      schemas.storage = [
+        { id: 'storage_objects', name: 'objects', schema: 'storage', fields: [
+          { name: 'id', type: 'string', required: true },
+          { name: 'name', type: 'string', required: true },
+          { name: 'bucket_id', type: 'string', required: true },
+          { name: 'size', type: 'number', required: true }
+        ], isSystemTable: true }
+      ]
+    }
+    
+    return schemas
+  }
+
+  const filteredTables = tables.filter(table => 
+    table.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const toggleSchema = (schema) => {
+    setExpandedSchemas(prev => ({
+      ...prev,
+      [schema]: !prev[schema]
+    }))
   }
 
   if (loading) {
@@ -551,59 +649,205 @@ const DatabaseDesigner = ({ app }) => {
     )
   }
 
+  const schemas = groupTablesBySchema()
+
   return (
-    <div className="h-full p-6 overflow-y-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Database Schema</h2>
-        <button
-          onClick={() => setShowCreateTable(true)}
-          className="px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:scale-105 transition-transform duration-200 flex items-center space-x-2"
-        >
-          <ApperIcon name="Plus" size={16} />
-          <span>Add Table</span>
-        </button>
+    <div className="h-full flex">
+      {/* Schema Sidebar */}
+      <div className="w-80 border-r border-gray-700 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Database</h3>
+            <button
+              onClick={() => setShowCreateTable(true)}
+              className="p-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
+            >
+              <ApperIcon name="Plus" size={16} />
+            </button>
+          </div>
+          
+          {/* Search */}
+          <div className="relative">
+            <ApperIcon name="Search" size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tables..."
+              className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        {/* Schema List */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {Object.entries(schemas).map(([schemaName, schemaTables]) => (
+            <div key={schemaName} className="mb-4">
+              <button
+                onClick={() => toggleSchema(schemaName)}
+                className="w-full flex items-center justify-between p-2 hover:bg-gray-800 rounded-lg transition-colors group"
+              >
+                <div className="flex items-center space-x-2">
+                  <ApperIcon name={getSchemaIcon(schemaName)} size={16} className="text-gray-400" />
+                  <span className="font-medium capitalize">{schemaName}</span>
+                  <span className="text-xs text-gray-500">({schemaTables.length})</span>
+                </div>
+                <ApperIcon 
+                  name={expandedSchemas[schemaName] ? "ChevronDown" : "ChevronRight"} 
+                  size={16} 
+                  className="text-gray-400 group-hover:text-white transition-colors" 
+                />
+              </button>
+              
+              {expandedSchemas[schemaName] && (
+                <div className="ml-4 mt-2 space-y-1">
+                  {schemaTables
+                    .filter(table => table.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map(table => (
+                    <button
+                      key={table.id}
+                      onClick={() => setSelectedTable(table)}
+                      className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors group ${
+                        selectedTable?.id === table.id 
+                          ? 'bg-primary text-white' 
+                          : 'hover:bg-gray-800 text-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <ApperIcon name="Table" size={14} />
+                        <span className="text-sm">{table.name}</span>
+                        {table.isSystemTable && (
+                          <span className="text-xs bg-gray-600 px-1 rounded">sys</span>
+                        )}
+                      </div>
+                      <span className="text-xs opacity-60">
+                        {table.fields?.length || 0} cols
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {tables.length === 0 ? (
-        <div className="text-center py-12">
-          <ApperIcon name="Database" size={48} className="text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Tables Yet</h3>
-          <p className="text-gray-400 mb-4">Create your first database table to get started</p>
-          <button
-            onClick={() => setShowCreateTable(true)}
-            className="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:scale-105 transition-transform duration-200"
-          >
-            Create Table
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {tables.map(table => (
-            <div key={table.id} className="glass rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">{table.name}</h3>
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto">
+        {selectedTable ? (
+          <div className="p-6">
+            {/* Table Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
+                  <ApperIcon name="Table" size={16} className="text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">{selectedTable.name}</h2>
+                  <p className="text-sm text-gray-400">
+                    {selectedTable.schema || 'public'} schema • {selectedTable.fields?.length || 0} columns
+                  </p>
+                </div>
+              </div>
+              
+              {!selectedTable.isSystemTable && (
                 <div className="flex space-x-2">
-                  <button className="p-2 text-gray-400 hover:text-white transition-colors">
+                  <button className="px-3 py-2 border border-gray-600 text-white rounded-lg hover:bg-gray-800 transition-colors">
                     <ApperIcon name="Edit" size={16} />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-error transition-colors">
+                  <button 
+                    onClick={() => handleDeleteTable(selectedTable.id)}
+                    className="px-3 py-2 border border-gray-600 text-error hover:bg-error/20 rounded-lg transition-colors"
+                  >
                     <ApperIcon name="Trash2" size={16} />
                   </button>
                 </div>
+              )}
+            </div>
+
+            {/* Table Stats */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="glass rounded-lg p-4">
+                <div className="text-sm text-gray-400">Rows</div>
+                <div className="text-xl font-semibold">{selectedTable.rowCount || '0'}</div>
               </div>
+              <div className="glass rounded-lg p-4">
+                <div className="text-sm text-gray-400">Size</div>
+                <div className="text-xl font-semibold">128 KB</div>
+              </div>
+              <div className="glass rounded-lg p-4">
+                <div className="text-sm text-gray-400">Relationships</div>
+                <div className="text-xl font-semibold">{selectedTable.relationships?.length || 0}</div>
+              </div>
+            </div>
+
+            {/* Columns */}
+            <div className="glass rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Columns</h3>
               <div className="space-y-2">
-                {table.fields?.map((field, index) => (
-                  <div key={index} className="flex items-center justify-between py-2 px-3 bg-gray-800 rounded-lg">
-                    <span className="font-medium">{field.name}</span>
-                    <span className="text-sm text-gray-400">{field.type}</span>
+                {selectedTable.fields?.map((field, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <ApperIcon name={getFieldTypeIcon(field.type)} size={16} className="text-gray-400" />
+                      <div>
+                        <div className="font-medium">{field.name}</div>
+                        <div className="text-sm text-gray-400">{field.type}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {field.required && (
+                        <span className="px-2 py-1 bg-error/20 text-error text-xs rounded">required</span>
+                      )}
+                      {field.name === 'id' && (
+                        <span className="px-2 py-1 bg-primary/20 text-primary text-xs rounded">primary key</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-          ))}
-        </div>
-      )}
 
+            {/* Relationships */}
+            {selectedTable.relationships?.length > 0 && (
+              <div className="glass rounded-lg p-6">
+                <h3 className="text-lg font-semibold mb-4">Relationships</h3>
+                <div className="space-y-2">
+                  {selectedTable.relationships.map((rel, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <ApperIcon name="ArrowRight" size={16} className="text-gray-400" />
+                        <div>
+                          <div className="font-medium">{rel.type}</div>
+                          <div className="text-sm text-gray-400">to {rel.table} via {rel.foreignKey}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center">
+              <ApperIcon name="Database" size={48} className="text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Select a Table</h3>
+              <p className="text-gray-400 mb-4">Choose a table from the sidebar to view its details</p>
+              {tables.length === 0 && (
+                <button
+                  onClick={() => setShowCreateTable(true)}
+                  className="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:scale-105 transition-transform duration-200"
+                >
+                  Create Your First Table
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Create Table Modal */}
       {showCreateTable && (
         <CreateTableModal
           onClose={() => setShowCreateTable(false)}
