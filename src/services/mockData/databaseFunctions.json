@@ -109,7 +109,7 @@
     "createdAt": "2024-01-20T11:45:00Z",
     "updatedAt": "2024-01-28T09:30:00Z"
   },
-  {
+{
     "id": "6",
     "appId": "2",
     "name": "cleanup_expired_sessions",
@@ -130,5 +130,37 @@
     "owner": "postgres",
     "createdAt": "2024-01-08T16:00:00Z",
     "updatedAt": "2024-01-15T13:45:00Z"
+  },
+  {
+    "id": "7",
+    "appId": "1",
+    "name": "validate_and_insert_user",
+    "description": "Beginner-friendly function that validates user inputs before insert and sends welcome email after successful creation",
+    "language": "plpgsql",
+    "returnType": "json",
+    "security": "definer",
+    "schema": "public",
+    "parameters": [
+      {
+        "name": "user_email",
+        "type": "text",
+        "mode": "IN"
+      },
+      {
+        "name": "user_name",
+        "type": "text",
+        "mode": "IN"
+      },
+      {
+        "name": "user_phone",
+        "type": "text",
+        "mode": "IN",
+        "default": "NULL"
+      }
+    ],
+    "body": "DECLARE\n    new_user_id uuid;\n    validation_errors text[] := array[]::text[];\n    result_json json;\n    email_sent boolean := false;\nBEGIN\n    -- STEP 1: Input Validation\n    -- Validate email format\n    IF user_email IS NULL OR trim(user_email) = '' THEN\n        validation_errors := array_append(validation_errors, 'Email is required');\n    ELSIF NOT user_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' THEN\n        validation_errors := array_append(validation_errors, 'Invalid email format');\n    END IF;\n    \n    -- Validate name\n    IF user_name IS NULL OR trim(user_name) = '' THEN\n        validation_errors := array_append(validation_errors, 'Name is required');\n    ELSIF length(trim(user_name)) < 2 THEN\n        validation_errors := array_append(validation_errors, 'Name must be at least 2 characters');\n    END IF;\n    \n    -- Validate phone if provided\n    IF user_phone IS NOT NULL AND trim(user_phone) != '' THEN\n        IF NOT user_phone ~ '^[\\+]?[0-9\\s\\-\\(\\)]{10,15}$' THEN\n            validation_errors := array_append(validation_errors, 'Invalid phone number format');\n        END IF;\n    END IF;\n    \n    -- Check if email already exists\n    IF EXISTS (SELECT 1 FROM users WHERE email = lower(trim(user_email))) THEN\n        validation_errors := array_append(validation_errors, 'Email already registered');\n    END IF;\n    \n    -- If validation errors exist, return them\n    IF array_length(validation_errors, 1) > 0 THEN\n        RETURN json_build_object(\n            'success', false,\n            'message', 'Validation failed',\n            'errors', validation_errors,\n            'user_id', null\n        );\n    END IF;\n    \n    -- STEP 2: Data Sanitization and Insert\n    BEGIN\n        -- Generate new UUID for user\n        new_user_id := gen_random_uuid();\n        \n        -- Insert new user with sanitized data\n        INSERT INTO users (\n            id,\n            email,\n            name,\n            phone,\n            status,\n            created_at,\n            updated_at\n        ) VALUES (\n            new_user_id,\n            lower(trim(user_email)),\n            trim(user_name),\n            CASE WHEN user_phone IS NOT NULL THEN trim(user_phone) ELSE NULL END,\n            'active',\n            NOW(),\n            NOW()\n        );\n        \n        -- Log successful user creation\n        INSERT INTO system_logs (action, details, timestamp, user_id)\n        VALUES (\n            'user_created',\n            json_build_object(\n                'user_id', new_user_id,\n                'email', lower(trim(user_email)),\n                'name', trim(user_name),\n                'has_phone', (user_phone IS NOT NULL)\n            ),\n            NOW(),\n            new_user_id\n        );\n        \n        -- STEP 3: Send Welcome Email\n        BEGIN\n            -- Insert email notification into queue\n            INSERT INTO email_queue (\n                recipient_email,\n                subject,\n                body,\n                template_type,\n                user_id,\n                status,\n                created_at\n            ) VALUES (\n                lower(trim(user_email)),\n                'Welcome to our platform!',\n                format('Hi %s,\\n\\nWelcome to our platform! Your account has been successfully created.\\n\\nBest regards,\\nThe Team', trim(user_name)),\n                'welcome_email',\n                new_user_id,\n                'pending',\n                NOW()\n            );\n            \n            email_sent := true;\n            \n        EXCEPTION\n            WHEN OTHERS THEN\n                -- Log email sending failure but don't fail the user creation\n                INSERT INTO system_logs (action, details, timestamp, user_id)\n                VALUES (\n                    'email_send_failed',\n                    json_build_object(\n                        'user_id', new_user_id,\n                        'email', lower(trim(user_email)),\n                        'error', SQLERRM\n                    ),\n                    NOW(),\n                    new_user_id\n                );\n                email_sent := false;\n        END;\n        \n        -- STEP 4: Return Success Response\n        result_json := json_build_object(\n            'success', true,\n            'message', 'User created successfully',\n            'user_id', new_user_id,\n            'email_sent', email_sent,\n            'errors', null\n        );\n        \n        RETURN result_json;\n        \n    EXCEPTION\n        WHEN unique_violation THEN\n            -- Handle race condition where email was inserted between check and insert\n            RETURN json_build_object(\n                'success', false,\n                'message', 'Email already registered',\n                'errors', array['Email already registered'],\n                'user_id', null\n            );\n        WHEN OTHERS THEN\n            -- Log unexpected error\n            INSERT INTO system_logs (action, details, timestamp)\n            VALUES (\n                'user_creation_error',\n                json_build_object(\n                    'email', user_email,\n                    'error_code', SQLSTATE,\n                    'error_message', SQLERRM\n                ),\n                NOW()\n            );\n            \n            -- Return error response\n            RETURN json_build_object(\n                'success', false,\n                'message', 'An unexpected error occurred while creating the user',\n                'errors', array['Database error occurred'],\n                'user_id', null\n            );\n    END;\nEND;",
+    "owner": "postgres",
+    "createdAt": "2024-01-30T10:00:00Z",
+    "updatedAt": "2024-01-30T10:00:00Z"
   }
 ]
