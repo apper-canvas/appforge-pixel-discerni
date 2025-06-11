@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import ApperIcon from '../components/ApperIcon'
-import { appService } from '../services'
-
+import ApperIcon from '@/components/ApperIcon'
+import { appService } from '@/services'
 const Dashboard = () => {
   const [apps, setApps] = useState([])
   const [loading, setLoading] = useState(false)
@@ -177,10 +176,10 @@ const Dashboard = () => {
           </div>
           <div className="glass rounded-xl p-6">
             <div className="flex items-center justify-between">
-              <div>
+<div>
                 <p className="text-gray-400 text-sm">Monthly Visits</p>
                 <p className="text-2xl font-bold">
-                  {apps.reduce((sum, app) => sum + app.monthlyVisits, 0).toLocaleString()}
+                  {apps.reduce((sum, app) => sum + (app?.monthlyVisits || 0), 0).toLocaleString()}
                 </p>
               </div>
               <ApperIcon name="BarChart3" size={24} className="text-accent" />
@@ -189,20 +188,20 @@ const Dashboard = () => {
           <div className="glass rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div>
+<div>
                 <p className="text-gray-400 text-sm">Billing</p>
                 <p className="text-2xl font-bold">
                   ${apps.reduce((sum, app) => {
                     const prices = { starter: 0, pro: 29, enterprise: 99 }
-                    return sum + (prices[app.billingTier] || 0)
+                    return sum + (prices[app?.billingTier] || 0)
                   }, 0)}
                 </p>
               </div>
-              <ApperIcon name="CreditCard" size={24} className="text-secondary" />
             </div>
           </div>
         </div>
 
-        {/* Apps Grid */}
+{/* Apps Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {apps.map((app, index) => (
             <motion.div
@@ -213,15 +212,7 @@ const Dashboard = () => {
               className="glass rounded-xl p-6 hover:scale-102 transition-transform duration-200 group"
             >
               {/* App Preview */}
-              <div className="h-32 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
-                <div className="text-4xl font-bold text-gray-500">{app.name.charAt(0)}</div>
-                <div className="absolute top-2 right-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getStatusColor(app.status)}`}>
-                    <ApperIcon name={getStatusIcon(app.status)} size={12} />
-                    <span className="capitalize">{app.status}</span>
-                  </span>
-                </div>
-              </div>
+              <AppPreview app={app} />
 
               {/* App Info */}
               <div className="mb-4">
@@ -229,10 +220,10 @@ const Dashboard = () => {
                 <p className="text-gray-400 text-sm">{app.subdomain}.appforge.dev</p>
               </div>
 
-              {/* Stats */}
+{/* Stats */}
               <div className="flex justify-between text-sm text-gray-400 mb-4">
-                <span>{app.monthlyVisits.toLocaleString()} visits</span>
-                <span className="capitalize">{app.billingTier}</span>
+                <span>{(app?.monthlyVisits || 0).toLocaleString()} visits</span>
+                <span className="capitalize">{app?.billingTier || 'starter'}</span>
               </div>
 
               {/* Actions */}
@@ -390,8 +381,86 @@ const CreateAppModal = ({ onClose, onSuccess }) => {
             </button>
           </div>
         </form>
-      </motion.div>
+</motion.div>
     </motion.div>
+  )
+}
+const AppPreview = ({ app }) => {
+  const [imageError, setImageError] = useState(false)
+  const [imageLoading, setImageLoading] = useState(true)
+
+  const handleImageLoad = () => {
+    setImageLoading(false)
+  }
+
+  const handleImageError = () => {
+    setImageError(true)
+    setImageLoading(false)
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'deployed': return 'text-success bg-success/20'
+      case 'building': return 'text-warning bg-warning/20'
+      case 'failed': return 'text-error bg-error/20'
+      default: return 'text-gray-400 bg-gray-400/20'
+    }
+  }
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'deployed': return 'CheckCircle'
+      case 'building': return 'Clock'
+      case 'failed': return 'XCircle'
+      default: return 'Circle'
+    }
+  }
+
+  return (
+    <div className="h-32 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg mb-4 relative overflow-hidden">
+      {/* Preview Image */}
+      {app.previewImage && !imageError ? (
+        <>
+          {imageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
+          <img
+            src={app.previewImage}
+            alt={`${app.name} preview`}
+            className={`w-full h-full object-cover transition-opacity duration-300 ${
+              imageLoading ? 'opacity-0' : 'opacity-100'
+            }`}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+          />
+          {/* Dark overlay for better text visibility */}
+          <div className="absolute inset-0 bg-black/20"></div>
+        </>
+) : (
+        /* Fallback to letter display */
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="text-4xl font-bold text-gray-500">{app?.name?.charAt(0) || '?'}</div>
+        </div>
+      )}
+      {/* Status Badge */}
+      <div className="absolute top-2 right-2">
+        <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 backdrop-blur-sm ${getStatusColor(app.status)}`}>
+          <ApperIcon name={getStatusIcon(app.status)} size={12} />
+          <span className="capitalize">{app.status}</span>
+        </span>
+      </div>
+      
+      {/* Template Badge */}
+      {app.template && (
+        <div className="absolute top-2 left-2">
+          <span className="px-2 py-1 bg-black/40 backdrop-blur-sm text-white text-xs rounded-full capitalize">
+            {app.template}
+          </span>
+        </div>
+      )}
+    </div>
   )
 }
 
