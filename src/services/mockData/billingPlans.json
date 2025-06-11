@@ -1,0 +1,55 @@
+[
+  {
+    "tier": "starter",
+    "price": 0,
+    "features": [
+      "1 App",
+      "1GB Database",
+      "Basic Auth",
+      "Community Support"
+    ],
+    "limits": {
+      "apps": 1,
+      "storage": "1GB",
+      "requests": 10000,
+      "teamMembers": 1,
+      "customDomains": 0
+    }
+  },
+  {
+    "tier": "pro", 
+    "price": 29,
+    "features": [
+      "5 Apps",
+      "10GB Database", 
+      "Social Auth",
+      "Priority Support",
+      "Custom Domains"
+    ],
+    "limits": {
+      "apps": 5,
+      "storage": "10GB", 
+      "requests": 100000,
+      "teamMembers": 5,
+      "customDomains": 3
+    }
+  },
+  {
+    "tier": "enterprise",
+    "price": 99,
+    "features": [
+      "Unlimited Apps",
+      "100GB Database",
+      "SSO",
+      "White-label", 
+      "Dedicated Support"
+    ],
+    "limits": {
+      "apps": -1,
+      "storage": "100GB",
+      "requests": 1000000,
+      "teamMembers": -1,
+      "customDomains": -1
+    }
+  }
+]

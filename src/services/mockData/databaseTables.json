@@ -1,0 +1,90 @@
+[
+  {
+    "id": "1",
+    "appId": "1",
+    "name": "users",
+    "fields": [
+      { "name": "id", "type": "string", "required": true },
+      { "name": "email", "type": "string", "required": true },
+      { "name": "name", "type": "string", "required": true },
+      { "name": "avatar", "type": "string", "required": false },
+      { "name": "role", "type": "string", "required": true },
+      { "name": "createdAt", "type": "date", "required": true }
+    ],
+    "relationships": [
+      { "type": "hasMany", "table": "tasks", "foreignKey": "userId" }
+    ],
+    "createdAt": "2024-01-15T10:35:00Z"
+  },
+  {
+    "id": "2", 
+    "appId": "1",
+    "name": "tasks",
+    "fields": [
+      { "name": "id", "type": "string", "required": true },
+      { "name": "title", "type": "string", "required": true },
+      { "name": "description", "type": "string", "required": false },
+      { "name": "status", "type": "string", "required": true },
+      { "name": "priority", "type": "string", "required": true },
+      { "name": "userId", "type": "string", "required": true },
+      { "name": "dueDate", "type": "date", "required": false },
+      { "name": "createdAt", "type": "date", "required": true }
+    ],
+    "relationships": [
+      { "type": "belongsTo", "table": "users", "foreignKey": "userId" }
+    ],
+    "createdAt": "2024-01-15T10:40:00Z"
+  },
+  {
+    "id": "3",
+    "appId": "2", 
+    "name": "products",
+    "fields": [
+      { "name": "id", "type": "string", "required": true },
+      { "name": "name", "type": "string", "required": true },
+      { "name": "description", "type": "string", "required": false },
+      { "name": "price", "type": "number", "required": true },
+      { "name": "images", "type": "array", "required": false },
+      { "name": "category", "type": "string", "required": true },
+      { "name": "stock", "type": "number", "required": true },
+      { "name": "featured", "type": "boolean", "required": false }
+    ],
+    "relationships": [
+      { "type": "hasMany", "table": "orderItems", "foreignKey": "productId" }
+    ],
+    "createdAt": "2024-01-10T14:25:00Z"
+  },
+  {
+    "id": "4",
+    "appId": "2",
+    "name": "orders", 
+    "fields": [
+      { "name": "id", "type": "string", "required": true },
+      { "name": "customerEmail", "type": "string", "required": true },
+      { "name": "customerName", "type": "string", "required": true },
+      { "name": "total", "type": "number", "required": true },
+      { "name": "status", "type": "string", "required": true },
+      { "name": "shippingAddress", "type": "object", "required": true },
+      { "name": "createdAt", "type": "date", "required": true }
+    ],
+    "relationships": [
+      { "type": "hasMany", "table": "orderItems", "foreignKey": "orderId" }
+    ],
+    "createdAt": "2024-01-10T14:30:00Z"
+  },
+  {
+    "id": "5",
+    "appId": "4",
+    "name": "analytics_events",
+    "fields": [
+      { "name": "id", "type": "string", "required": true },
+      { "name": "event", "type": "string", "required": true },
+      { "name": "userId", "type": "string", "required": false },
+      { "name": "properties", "type": "object", "required": false },
+      { "name": "timestamp", "type": "date", "required": true },
+      { "name": "sessionId", "type": "string", "required": false }
+    ],
+    "relationships": [],
+    "createdAt": "2024-01-08T16:50:00Z"
+  }
+]
