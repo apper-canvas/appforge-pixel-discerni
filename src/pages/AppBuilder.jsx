@@ -2173,41 +2173,7 @@ const AppSettings = ({ app }) => {
             <button className="px-6 py-3 border border-gray-600 text-white rounded-lg hover:bg-gray-800 transition-colors">
               Cancel
             </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-          <h3 className="text-lg font-semibold mb-4">Security Settings</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-medium">Two-Factor Authentication</h4>
-                <p className="text-sm text-gray-400">Require 2FA for all users</p>
-              </div>
-              <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-600">
-                <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-1" />
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-medium">Email Verification</h4>
-                <p className="text-sm text-gray-400">Require email verification for new accounts</p>
-              </div>
-              <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-primary">
-                <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-6" />
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-medium">Password Requirements</h4>
-                <p className="text-sm text-gray-400">Enforce strong password policy</p>
-              </div>
-              <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-primary">
-                <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-6" />
-              </button>
-            </div>
-          </div>
+</div>
         </div>
       </div>
     </div>
