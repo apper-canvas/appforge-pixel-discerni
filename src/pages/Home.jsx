@@ -87,10 +87,10 @@ const Home = () => {
                 to="/dashboard"
                 className="px-8 py-4 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-lg hover:scale-105 transition-transform duration-200"
               >
-                Start Building Free
+Start Building Free
               </Link>
               <button className="px-8 py-4 border border-gray-600 text-white font-semibold rounded-lg hover:bg-gray-800 transition-colors duration-200">
-                Watch Demo
+                Watch Demo Now
               </button>
             </div>
           </motion.div>
