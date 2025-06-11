@@ -172,11 +172,11 @@ const Dashboard = () => {
                 </p>
               </div>
               <ApperIcon name="CheckCircle" size={24} className="text-success" />
-            </div>
+</div>
           </div>
           <div className="glass rounded-xl p-6">
             <div className="flex items-center justify-between">
-<div>
+              <div>
                 <p className="text-gray-400 text-sm">Monthly Visits</p>
                 <p className="text-2xl font-bold">
                   {apps.reduce((sum, app) => sum + (app?.monthlyVisits || 0), 0).toLocaleString()}
@@ -188,7 +188,6 @@ const Dashboard = () => {
           <div className="glass rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div>
-<div>
                 <p className="text-gray-400 text-sm">Billing</p>
                 <p className="text-2xl font-bold">
                   ${apps.reduce((sum, app) => {
@@ -197,11 +196,12 @@ const Dashboard = () => {
                   }, 0)}
                 </p>
               </div>
+              <ApperIcon name="DollarSign" size={24} className="text-success" />
             </div>
           </div>
         </div>
 
-{/* Apps Grid */}
+        {/* Apps Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {apps.map((app, index) => (
             <motion.div
@@ -218,9 +218,9 @@ const Dashboard = () => {
               <div className="mb-4">
                 <h3 className="text-lg font-semibold mb-1">{app.name}</h3>
                 <p className="text-gray-400 text-sm">{app.subdomain}.appforge.dev</p>
-              </div>
+</div>
 
-{/* Stats */}
+              {/* Stats */}
               <div className="flex justify-between text-sm text-gray-400 mb-4">
                 <span>{(app?.monthlyVisits || 0).toLocaleString()} visits</span>
                 <span className="capitalize">{app?.billingTier || 'starter'}</span>
@@ -379,9 +379,9 @@ const CreateAppModal = ({ onClose, onSuccess }) => {
             >
               {loading ? 'Creating...' : 'Create App'}
             </button>
-          </div>
+</div>
         </form>
-</motion.div>
+      </motion.div>
     </motion.div>
   )
 }
@@ -435,10 +435,10 @@ const AppPreview = ({ app }) => {
             onLoad={handleImageLoad}
             onError={handleImageError}
           />
-          {/* Dark overlay for better text visibility */}
+{/* Dark overlay for better text visibility */}
           <div className="absolute inset-0 bg-black/20"></div>
         </>
-) : (
+      ) : (
         /* Fallback to letter display */
         <div className="w-full h-full flex items-center justify-center">
           <div className="text-4xl font-bold text-gray-500">{app?.name?.charAt(0) || '?'}</div>
