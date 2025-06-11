@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { toast } from 'react-toastify'
 import ApperIcon from '../components/ApperIcon'
-import { appService, databaseTableService, authProviderService, webhookService, subscriptionService } from '../services'
+import { appService, databaseTableService, authProviderService, webhookService, subscriptionService, databaseFunctionService } from '../services'
 
 const AppBuilder = () => {
   const { appId } = useParams()
@@ -503,24 +503,27 @@ const ComponentPreview = ({ component }) => {
   }
 }
 const DatabaseDesigner = ({ app }) => {
-  const [activeTab, setActiveTab] = useState('tables')
+const [activeTab, setActiveTab] = useState('tables')
   const [tables, setTables] = useState([])
   const [webhooks, setWebhooks] = useState([])
   const [subscriptions, setSubscriptions] = useState([])
+  const [functions, setFunctions] = useState([])
   const [loading, setLoading] = useState(false)
   const [showCreateTable, setShowCreateTable] = useState(false)
   const [showCreateWebhook, setShowCreateWebhook] = useState(false)
   const [showCreateSubscription, setShowCreateSubscription] = useState(false)
+  const [showCreateFunction, setShowCreateFunction] = useState(false)
   const [selectedTable, setSelectedTable] = useState(null)
   const [selectedWebhook, setSelectedWebhook] = useState(null)
   const [selectedSubscription, setSelectedSubscription] = useState(null)
+  const [selectedFunction, setSelectedFunction] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedSchemas, setExpandedSchemas] = useState({ public: true, auth: true, storage: true })
-
-  const databaseTabs = [
+const databaseTabs = [
     { id: 'tables', label: 'Tables', icon: 'Table' },
     { id: 'webhooks', label: 'Webhooks', icon: 'Webhook' },
-    { id: 'subscriptions', label: 'Subscriptions', icon: 'Radio' }
+    { id: 'subscriptions', label: 'Subscriptions', icon: 'Radio' },
+    { id: 'functions', label: 'Functions', icon: 'Code' }
   ]
 
   useEffect(() => {
@@ -529,7 +532,7 @@ const DatabaseDesigner = ({ app }) => {
     }
   }, [app, activeTab])
 
-  const loadData = async () => {
+const loadData = async () => {
     setLoading(true)
     try {
       if (activeTab === 'tables') {
@@ -552,6 +555,13 @@ const DatabaseDesigner = ({ app }) => {
         setSubscriptions(appSubscriptions)
         if (appSubscriptions.length > 0 && !selectedSubscription) {
           setSelectedSubscription(appSubscriptions[0])
+        }
+      } else if (activeTab === 'functions') {
+        const result = await databaseFunctionService.getAll()
+        const appFunctions = result.filter(func => func.appId === app?.id)
+        setFunctions(appFunctions)
+        if (appFunctions.length > 0 && !selectedFunction) {
+          setSelectedFunction(appFunctions[0])
         }
       }
     } catch (err) {
@@ -593,7 +603,7 @@ const DatabaseDesigner = ({ app }) => {
     }
   }
 
-  const handleCreateSubscription = async (subscriptionData) => {
+const handleCreateSubscription = async (subscriptionData) => {
     try {
       const newSubscription = await subscriptionService.create({
         ...subscriptionData,
@@ -605,6 +615,21 @@ const DatabaseDesigner = ({ app }) => {
       toast.success('Subscription created successfully')
     } catch (err) {
       toast.error('Failed to create subscription')
+    }
+  }
+
+  const handleCreateFunction = async (functionData) => {
+    try {
+      const newFunction = await databaseFunctionService.create({
+        ...functionData,
+        appId: app.id
+      })
+      setFunctions([...functions, newFunction])
+      setSelectedFunction(newFunction)
+      setShowCreateFunction(false)
+      toast.success('Function created successfully')
+    } catch (err) {
+      toast.error('Failed to create function')
     }
   }
 
@@ -626,6 +651,23 @@ const DatabaseDesigner = ({ app }) => {
     }
   }
 
+  const handleDeleteFunction = async (functionId) => {
+    if (!confirm('Are you sure you want to delete this function? This action cannot be undone.')) {
+      return
+    }
+    
+    try {
+      await databaseFunctionService.delete(functionId)
+      const updatedFunctions = functions.filter(f => f.id !== functionId)
+      setFunctions(updatedFunctions)
+      if (selectedFunction?.id === functionId) {
+        setSelectedFunction(updatedFunctions[0] || null)
+      }
+      toast.success('Function deleted successfully')
+    } catch (err) {
+      toast.error('Failed to delete function')
+    }
+  }
   const handleDeleteWebhook = async (webhookId) => {
     if (!confirm('Are you sure you want to delete this webhook?')) {
       return
@@ -806,7 +848,7 @@ const DatabaseDesigner = ({ app }) => {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+<div className="flex-1 flex overflow-hidden">
         {activeTab === 'tables' && (
           <>
             {/* Schema Sidebar */}
@@ -1081,9 +1123,94 @@ const DatabaseDesigner = ({ app }) => {
             </div>
           </>
         )}
+
+        {activeTab === 'functions' && (
+          <>
+            {/* Functions Sidebar */}
+            <div className="w-80 border-r border-gray-700 flex flex-col">
+              <div className="p-4 border-b border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Functions</h3>
+                  <button
+                    onClick={() => setShowCreateFunction(true)}
+                    className="p-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
+                  >
+                    <ApperIcon name="Plus" size={16} />
+                  </button>
+                </div>
+                
+                <div className="relative">
+                  <ApperIcon name="Search" size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search functions..."
+                    className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="space-y-2">
+                  {functions
+                    .filter(func => func.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map(func => (
+                    <button
+                      key={func.id}
+                      onClick={() => setSelectedFunction(func)}
+                      className={`w-full p-3 rounded-lg text-left transition-colors ${
+                        selectedFunction?.id === func.id 
+                          ? 'bg-primary text-white' 
+                          : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-sm">{func.name}</span>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          func.language === 'plpgsql' ? 'bg-blue-600' : 'bg-green-600'
+                        }`}>
+                          {func.language}
+                        </span>
+                      </div>
+                      <div className="text-xs opacity-60">{func.returnType}</div>
+                      <div className="text-xs opacity-60">{func.parameters?.length || 0} params</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Function Details */}
+            <div className="flex-1 overflow-y-auto">
+              {selectedFunction ? (
+                <FunctionDetailsView 
+                  func={selectedFunction}
+                  onDelete={handleDeleteFunction}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <ApperIcon name="Code" size={48} className="text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Select a Function</h3>
+                    <p className="text-gray-400 mb-4">Choose a function to view its code and configuration</p>
+                    {functions.length === 0 && (
+                      <button
+                        onClick={() => setShowCreateFunction(true)}
+                        className="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:scale-105 transition-transform duration-200"
+                      >
+                        Create Your First Function
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Modals */}
+{/* Modals */}
       {showCreateTable && (
         <CreateTableModal
           onClose={() => setShowCreateTable(false)}
@@ -1104,6 +1231,13 @@ const DatabaseDesigner = ({ app }) => {
           onClose={() => setShowCreateSubscription(false)}
           onSubmit={handleCreateSubscription}
           tables={tables}
+        />
+      )}
+
+      {showCreateFunction && (
+        <CreateFunctionModal
+          onClose={() => setShowCreateFunction(false)}
+          onSubmit={handleCreateFunction}
         />
       )}
     </div>
@@ -2064,7 +2198,344 @@ const CreateSubscriptionModal = ({ onClose, onSubmit, tables }) => {
     </motion.div>
   )
 }
+// Function Details View Component
+function FunctionDetailsView({ func, onDelete }) {
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="p-6 border-b border-gray-700">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold">{func.name}</h2>
+            <p className="text-gray-400 text-sm mt-1">{func.description}</p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              func.language === 'plpgsql' ? 'bg-blue-600' : 'bg-green-600'
+            }`}>
+              {func.language}
+            </span>
+            <button
+              onClick={() => onDelete(func.id)}
+              className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-colors"
+            >
+              <ApperIcon name="Trash2" size={16} />
+            </button>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="text-gray-400">Return Type:</span>
+            <span className="ml-2 font-medium">{func.returnType}</span>
+          </div>
+          <div>
+            <span className="text-gray-400">Parameters:</span>
+            <span className="ml-2 font-medium">{func.parameters?.length || 0}</span>
+          </div>
+          <div>
+            <span className="text-gray-400">Security:</span>
+            <span className="ml-2 font-medium">{func.security}</span>
+          </div>
+        </div>
+      </div>
 
+      {/* Function Body */}
+      <div className="flex-1 p-6 overflow-y-auto">
+        <div className="space-y-6">
+          {/* Parameters */}
+          {func.parameters && func.parameters.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Parameters</h3>
+              <div className="bg-gray-800 rounded-lg p-4">
+                <div className="space-y-2">
+                  {func.parameters.map((param, index) => (
+                    <div key={index} className="flex items-center justify-between py-2 border-b border-gray-700 last:border-b-0">
+                      <div className="flex items-center space-x-3">
+                        <span className="font-medium">{param.name}</span>
+                        <span className="text-xs bg-gray-700 px-2 py-1 rounded">{param.type}</span>
+                        {param.default && (
+                          <span className="text-xs text-gray-400">default: {param.default}</span>
+                        )}
+                      </div>
+                      <span className="text-sm text-gray-400">{param.mode || 'IN'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Function Code */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Function Body</h3>
+            <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+              <pre className="text-gray-300 whitespace-pre-wrap">{func.body}</pre>
+            </div>
+          </div>
+
+          {/* Metadata */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Metadata</h3>
+            <div className="bg-gray-800 rounded-lg p-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-400">Created:</span>
+                  <span className="ml-2">{new Date(func.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Modified:</span>
+                  <span className="ml-2">{new Date(func.updatedAt).toLocaleDateString()}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Schema:</span>
+                  <span className="ml-2">{func.schema}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Owner:</span>
+                  <span className="ml-2">{func.owner}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Create Function Modal Component
+function CreateFunctionModal({ onClose, onSubmit }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    language: 'plpgsql',
+    returnType: 'void',
+    security: 'definer',
+    schema: 'public',
+    body: 'BEGIN\n    -- Function implementation here\n    \nEND;',
+    parameters: []
+  })
+
+  const [newParam, setNewParam] = useState({
+    name: '',
+    type: 'text',
+    mode: 'IN',
+    default: ''
+  })
+
+  const addParameter = () => {
+    if (newParam.name && newParam.type) {
+      setFormData(prev => ({
+        ...prev,
+        parameters: [...prev.parameters, { ...newParam }]
+      }))
+      setNewParam({ name: '', type: 'text', mode: 'IN', default: '' })
+    }
+  }
+
+  const removeParameter = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      parameters: prev.parameters.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSubmit(formData)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold">Create New Function</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            <ApperIcon name="X" size={24} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Function Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Return Type</label>
+              <select
+                value={formData.returnType}
+                onChange={(e) => setFormData(prev => ({ ...prev, returnType: e.target.value }))}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value="void">void</option>
+                <option value="text">text</option>
+                <option value="integer">integer</option>
+                <option value="boolean">boolean</option>
+                <option value="json">json</option>
+                <option value="jsonb">jsonb</option>
+                <option value="trigger">trigger</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              rows={2}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Language</label>
+              <select
+                value={formData.language}
+                onChange={(e) => setFormData(prev => ({ ...prev, language: e.target.value }))}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value="plpgsql">PL/pgSQL</option>
+                <option value="sql">SQL</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Security</label>
+              <select
+                value={formData.security}
+                onChange={(e) => setFormData(prev => ({ ...prev, security: e.target.value }))}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value="definer">Definer</option>
+                <option value="invoker">Invoker</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Schema</label>
+              <select
+                value={formData.schema}
+                onChange={(e) => setFormData(prev => ({ ...prev, schema: e.target.value }))}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value="public">public</option>
+                <option value="auth">auth</option>
+                <option value="storage">storage</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Parameters */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Parameters</label>
+            <div className="space-y-2">
+              {formData.parameters.map((param, index) => (
+                <div key={index} className="flex items-center space-x-2 p-2 bg-gray-700 rounded">
+                  <span className="font-medium">{param.name}</span>
+                  <span className="text-sm text-gray-400">{param.type}</span>
+                  <span className="text-sm text-gray-400">{param.mode}</span>
+                  {param.default && (
+                    <span className="text-sm text-gray-400">= {param.default}</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeParameter(index)}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    <ApperIcon name="X" size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            
+            <div className="mt-2 grid grid-cols-5 gap-2">
+              <input
+                type="text"
+                placeholder="Name"
+                value={newParam.name}
+                onChange={(e) => setNewParam(prev => ({ ...prev, name: e.target.value }))}
+                className="p-2 bg-gray-700 border border-gray-600 rounded text-sm"
+              />
+              <select
+                value={newParam.type}
+                onChange={(e) => setNewParam(prev => ({ ...prev, type: e.target.value }))}
+                className="p-2 bg-gray-700 border border-gray-600 rounded text-sm"
+              >
+                <option value="text">text</option>
+                <option value="integer">integer</option>
+                <option value="boolean">boolean</option>
+                <option value="json">json</option>
+                <option value="uuid">uuid</option>
+              </select>
+              <select
+                value={newParam.mode}
+                onChange={(e) => setNewParam(prev => ({ ...prev, mode: e.target.value }))}
+                className="p-2 bg-gray-700 border border-gray-600 rounded text-sm"
+              >
+                <option value="IN">IN</option>
+                <option value="OUT">OUT</option>
+                <option value="INOUT">INOUT</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Default (optional)"
+                value={newParam.default}
+                onChange={(e) => setNewParam(prev => ({ ...prev, default: e.target.value }))}
+                className="p-2 bg-gray-700 border border-gray-600 rounded text-sm"
+              />
+              <button
+                type="button"
+                onClick={addParameter}
+                className="p-2 bg-primary text-white rounded hover:bg-primary/80 text-sm"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Function Body */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Function Body</label>
+            <textarea
+              value={formData.body}
+              onChange={(e) => setFormData(prev => ({ ...prev, body: e.target.value }))}
+              className="w-full p-3 bg-gray-900 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm"
+              rows={12}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end space-x-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 text-gray-400 hover:text-white border border-gray-600 rounded-lg hover:border-gray-500 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
+            >
+              Create Function
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
 const AppSettings = ({ app }) => {
   const [settings, setSettings] = useState({
     name: app?.name || '',

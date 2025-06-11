@@ -1,0 +1,134 @@
+[
+  {
+    "id": "1",
+    "appId": "1",
+    "name": "get_user_profile",
+    "description": "Retrieves complete user profile with preferences",
+    "language": "plpgsql",
+    "returnType": "json",
+    "security": "definer",
+    "schema": "public",
+    "parameters": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "mode": "IN"
+      }
+    ],
+    "body": "DECLARE\n    user_data json;\nBEGIN\n    SELECT row_to_json(u.*) INTO user_data\n    FROM users u\n    WHERE u.id = user_id;\n    \n    IF user_data IS NULL THEN\n        RAISE EXCEPTION 'User not found';\n    END IF;\n    \n    RETURN user_data;\nEND;",
+    "owner": "postgres",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-20T14:45:00Z"
+  },
+  {
+    "id": "2",
+    "appId": "1",
+    "name": "calculate_order_total",
+    "description": "Calculates total order amount including taxes and discounts",
+    "language": "plpgsql",
+    "returnType": "numeric",
+    "security": "definer",
+    "schema": "public",
+    "parameters": [
+      {
+        "name": "order_id",
+        "type": "integer",
+        "mode": "IN"
+      },
+      {
+        "name": "tax_rate",
+        "type": "numeric",
+        "mode": "IN",
+        "default": "0.08"
+      }
+    ],
+    "body": "DECLARE\n    subtotal numeric := 0;\n    discount_amount numeric := 0;\n    tax_amount numeric := 0;\n    total numeric := 0;\nBEGIN\n    -- Calculate subtotal\n    SELECT COALESCE(SUM(quantity * price), 0) INTO subtotal\n    FROM order_items\n    WHERE order_id = calculate_order_total.order_id;\n    \n    -- Apply discount if any\n    SELECT COALESCE(discount_value, 0) INTO discount_amount\n    FROM orders\n    WHERE id = calculate_order_total.order_id;\n    \n    -- Calculate tax\n    tax_amount := (subtotal - discount_amount) * tax_rate;\n    \n    -- Calculate final total\n    total := subtotal - discount_amount + tax_amount;\n    \n    RETURN ROUND(total, 2);\nEND;",
+    "owner": "postgres",
+    "createdAt": "2024-01-18T09:15:00Z",
+    "updatedAt": "2024-01-22T16:30:00Z"
+  },
+  {
+    "id": "3",
+    "appId": "1",
+    "name": "audit_user_activity",
+    "description": "Trigger function to log user activity changes",
+    "language": "plpgsql",
+    "returnType": "trigger",
+    "security": "definer",
+    "schema": "public",
+    "parameters": [],
+    "body": "BEGIN\n    -- Log the activity change\n    INSERT INTO user_activity_log (\n        user_id,\n        action_type,\n        old_data,\n        new_data,\n        timestamp,\n        ip_address\n    ) VALUES (\n        COALESCE(NEW.user_id, OLD.user_id),\n        TG_OP,\n        CASE WHEN TG_OP = 'DELETE' THEN row_to_json(OLD) ELSE NULL END,\n        CASE WHEN TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN row_to_json(NEW) ELSE NULL END,\n        NOW(),\n        inet_client_addr()\n    );\n    \n    -- Return appropriate record\n    IF TG_OP = 'DELETE' THEN\n        RETURN OLD;\n    ELSE\n        RETURN NEW;\n    END IF;\nEND;",
+    "owner": "postgres",
+    "createdAt": "2024-01-10T12:00:00Z",
+    "updatedAt": "2024-01-25T10:15:00Z"
+  },
+  {
+    "id": "4",
+    "appId": "2",
+    "name": "validate_email_format",
+    "description": "Validates email format using regex pattern",
+    "language": "plpgsql",
+    "returnType": "boolean",
+    "security": "invoker",
+    "schema": "public",
+    "parameters": [
+      {
+        "name": "email_address",
+        "type": "text",
+        "mode": "IN"
+      }
+    ],
+    "body": "BEGIN\n    -- Check if email matches standard pattern\n    RETURN email_address ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$';\nEND;",
+    "owner": "postgres",
+    "createdAt": "2024-01-12T14:20:00Z",
+    "updatedAt": "2024-01-12T14:20:00Z"
+  },
+  {
+    "id": "5",
+    "appId": "1",
+    "name": "get_monthly_sales_report",
+    "description": "Generates comprehensive monthly sales report",
+    "language": "sql",
+    "returnType": "table",
+    "security": "definer",
+    "schema": "public",
+    "parameters": [
+      {
+        "name": "report_month",
+        "type": "integer",
+        "mode": "IN"
+      },
+      {
+        "name": "report_year",
+        "type": "integer",
+        "mode": "IN"
+      }
+    ],
+    "body": "SELECT \n    DATE_TRUNC('day', created_at) as sale_date,\n    COUNT(*) as total_orders,\n    SUM(total_amount) as daily_revenue,\n    AVG(total_amount) as avg_order_value,\n    COUNT(DISTINCT customer_id) as unique_customers\nFROM orders \nWHERE \n    EXTRACT(MONTH FROM created_at) = report_month \n    AND EXTRACT(YEAR FROM created_at) = report_year\n    AND status = 'completed'\nGROUP BY DATE_TRUNC('day', created_at)\nORDER BY sale_date;",
+    "owner": "postgres",
+    "createdAt": "2024-01-20T11:45:00Z",
+    "updatedAt": "2024-01-28T09:30:00Z"
+  },
+  {
+    "id": "6",
+    "appId": "2",
+    "name": "cleanup_expired_sessions",
+    "description": "Removes expired user sessions from the database",
+    "language": "plpgsql",
+    "returnType": "integer",
+    "security": "definer",
+    "schema": "auth",
+    "parameters": [
+      {
+        "name": "expiry_hours",
+        "type": "integer",
+        "mode": "IN",
+        "default": "24"
+      }
+    ],
+    "body": "DECLARE\n    deleted_count integer := 0;\nBEGIN\n    -- Delete expired sessions\n    WITH deleted AS (\n        DELETE FROM user_sessions \n        WHERE last_activity < NOW() - INTERVAL '1 hour' * expiry_hours\n        RETURNING id\n    )\n    SELECT COUNT(*) INTO deleted_count FROM deleted;\n    \n    -- Log cleanup activity\n    INSERT INTO system_logs (action, details, timestamp)\n    VALUES (\n        'session_cleanup',\n        jsonb_build_object('deleted_sessions', deleted_count, 'expiry_hours', expiry_hours),\n        NOW()\n    );\n    \n    RETURN deleted_count;\nEND;",
+    "owner": "postgres",
+    "createdAt": "2024-01-08T16:00:00Z",
+    "updatedAt": "2024-01-15T13:45:00Z"
+  }
+]
